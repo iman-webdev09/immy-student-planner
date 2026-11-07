@@ -1,4 +1,4 @@
-const CACHE_NAME = 'immy-v5'; // v5 kar diya hai
+const CACHE_NAME = 'immy-v6'; // v5 kar diya hai
 const ASSETS = [
   './',
   './index.html',
