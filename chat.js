@@ -1,3 +1,4 @@
+export const config = { runtime: 'edge' };
 export default async function handler(req, res) {
   // CORS Headers (Taake browser se request block na ho)
   res.setHeader('Access-Control-Allow-Credentials', true);
