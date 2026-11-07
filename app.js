@@ -523,7 +523,7 @@ if (chatToggle) {
 
     try {
       // Ye humare api/chat.js (server) ko request bhej raha hai
-      const response = await fetch('api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
