@@ -10,6 +10,14 @@ const cors = {
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: cors });
 
+// Pehla model na chale to agla try hoga
+const MODELS = [
+  'llama-3.1-8b-instant',
+  'openai/gpt-oss-20b',
+  'llama-3.3-70b-versatile',
+  'openai/gpt-oss-120b'
+];
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 200, headers: cors });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -26,28 +34,46 @@ export default async function handler(req) {
 
   const systemPrompt = `You are Immy, a friendly student assistant. The student is Iman. Speak in English/Roman Urdu. Keep it short. Tasks: ${userTasks || 'None'}`;
 
-  try {
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 150
-      })
-    });
+  let lastError = 'Groq API Error';
 
-    const data = await r.json();
-    if (!r.ok) return json({ error: data.error?.message || 'Groq API Error' }, r.status);
-    return json({ reply: data.choices[0].message.content });
-  } catch (e) {
-    return json({ error: e.message }, 500);
+  for (const model of MODELS) {
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          temperature: 0.7,
+          max_tokens: 400
+        })
+      });
+
+      const data = await r.json();
+
+      if (r.ok) {
+        const reply = data.choices?.[0]?.message?.content;
+        if (reply && reply.trim()) return json({ reply });
+        lastError = `Model ${model} ne khali jawab diya`;
+        continue;
+      }
+
+      lastError = data.error?.message || `Groq error ${r.status}`;
+
+      // Model ka masla ho to agla model try karo, warna ruk jao
+      const msg = lastError.toLowerCase();
+      const modelProblem = msg.includes('model') || r.status === 404;
+      if (!modelProblem) return json({ error: lastError }, r.status);
+    } catch (e) {
+      lastError = e.message;
+    }
   }
+
+  return json({ error: lastError }, 500);
 }
