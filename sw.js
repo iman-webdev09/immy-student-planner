@@ -1,12 +1,12 @@
-const CACHE_NAME = 'immy-v6'; // v5 kar diya hai
+const CACHE_NAME = 'immy-v7';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icon-192.png',  // Yahan .png kar diya hai
-  './icon-512.png'   // Yahan bhi .png kar diya hai
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -28,6 +28,8 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // API calls ko cache se mat guzaro
+  if (e.request.method !== 'GET' || e.request.url.includes('/api/')) return;
   e.respondWith(
     caches.match(e.request).then((response) => response || fetch(e.request))
   );

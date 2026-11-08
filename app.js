@@ -49,14 +49,14 @@ function calculateRisk(dueDate, estimatedHours) {
   const msPerDay = 1000 * 3600 * 24;
   const daysLeft = Math.ceil((deadline.getTime() - today.getTime()) / msPerDay);
 
-  if (daysLeft < 0) return 'high';   
-  if (daysLeft === 0) return 'high'; 
+  if (daysLeft < 0) return 'high';
+  if (daysLeft === 0) return 'high';
 
   const availableHours = daysLeft * getDailyCapacity();
   const ratio = estimatedHours / availableHours;
 
-  if (ratio > 1)   return 'high';  
-  if (ratio > 0.6) return 'med';   
+  if (ratio > 1)   return 'high';
+  if (ratio > 0.6) return 'med';
   return 'low';
 }
 
@@ -135,7 +135,7 @@ function toggleTask(id) {
 }
 
 function deleteTask(id) {
-  if(confirm("Kya aap waqai yeh task delete karna chahte hain?")) {
+  if (confirm("Kya aap waqai yeh task delete karna chahte hain?")) {
     tasks = tasks.filter(t => t.id !== id);
     saveTasks(); renderTasks();
   }
@@ -159,18 +159,18 @@ function saveEditedTask() {
   const due = document.getElementById('taskDue').value;
   const hours = parseInt(document.getElementById('taskHours').value) || 1;
   if (!name || !subject) return alert("Please enter name and subject");
-  
+
   const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
   if (taskIndex > -1) {
     tasks[taskIndex].name = name;
     tasks[taskIndex].subject = subject;
     tasks[taskIndex].due = due || 'No date';
     tasks[taskIndex].hours = hours;
-    tasks[taskIndex].risk = calculateRisk(due, hours); 
+    tasks[taskIndex].risk = calculateRisk(due, hours);
     saveTasks(); renderTasks();
   }
   closeModal('taskModal');
-  editingTaskId = null; 
+  editingTaskId = null;
 }
 
 // ===== 5. MODALS SETUP =====
@@ -238,7 +238,7 @@ function addNewTask() {
   const due = document.getElementById('taskDue').value;
   const hours = parseInt(document.getElementById('taskHours').value) || 1;
   if (!name || !subject) return alert("Please enter name and subject");
-  
+
   const risk = calculateRisk(due, hours);
   const colors = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
   const randomColor = colors[Math.floor(Math.random() * colors.length)];
@@ -331,7 +331,7 @@ function addStudyLog() {
   const subject = document.getElementById('logSubject').value.trim();
   const content = document.getElementById('logContent').value.trim();
   if (!subject || !content) return alert("Please fill both fields!");
-  
+
   studyLogs.push({ subject, content });
   saveStudyLogs(); renderStudyLog();
   document.getElementById('logSubject').value = '';
@@ -357,7 +357,7 @@ document.addEventListener('click', (e) => {
   navItem.classList.add('active');
 
   const targetPageId = navItem.getAttribute('data-page');
-  
+
   document.getElementById('dashboard-page').style.display = 'none';
   document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
 
@@ -373,7 +373,7 @@ document.addEventListener('click', (e) => {
 
 // ===== 9. TIMER LOGIC =====
 let timerInterval;
-let timeCounterInterval; 
+let timeCounterInterval;
 let timeLeft = 25 * 60;
 let isTimerRunning = false;
 let isBreakTime = false;
@@ -471,11 +471,11 @@ function updateStudyTimeStat() {
 function updateGraph() {
   const bars = document.querySelectorAll('.chart-container .bar');
   if (bars.length === 0) return;
-  
+
   const today = new Date().getDay();
   let totalSeconds = parseInt(localStorage.getItem('totalStudyTime')) || 0;
   let heightPercentage = Math.min((totalSeconds / 3600) * 20, 100);
-  
+
   bars.forEach((bar, index) => {
     let targetDayIndex = (today === 0) ? 6 : today - 1;
     if (index === targetDayIndex) {
@@ -522,20 +522,22 @@ if (chatToggle) {
     const tasksString = pendingTasks.map(t => `${t.name} (${t.subject})`).join(', ');
 
     try {
-      // Ye humare api/chat.js (server) ko request bhej raha hai
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: userMessage,
-          userTasks: tasksString 
+          userTasks: tasksString
         })
       });
 
-      if (!response.ok) throw new Error('Network error');
-      
       const data = await response.json();
-return data.reply || data.error || "Kuch masla hai, dobara try karo.";
+
+      if (!response.ok) {
+        return "Error: " + (data.error || response.status);
+      }
+      return data.reply || "Immy ne khali jawab diya, dobara try karo.";
+
     } catch (error) {
       console.error("AI Error:", error);
       return "Sorry Iman, AI se connect nahi ho pa raha. Internet check karein!";
@@ -568,10 +570,12 @@ return data.reply || data.error || "Kuch masla hai, dobara try karo.";
   chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
   });
-}// ===== 12. INITIALIZE =====
-renderTasks(); 
-renderSubjects(); 
-renderNotes(); 
+}
+
+// ===== 12. INITIALIZE =====
+renderTasks();
+renderSubjects();
+renderNotes();
 updateTimerDisplay();
 updateSubjectsStat();
 updateStudyTimeStat();
