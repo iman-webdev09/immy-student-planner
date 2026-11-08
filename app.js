@@ -535,8 +535,7 @@ if (chatToggle) {
       if (!response.ok) throw new Error('Network error');
       
       const data = await response.json();
-      return data.reply;
-
+return data.reply || data.error || "Kuch masla hai, dobara try karo.";
     } catch (error) {
       console.error("AI Error:", error);
       return "Sorry Iman, AI se connect nahi ho pa raha. Internet check karein!";
