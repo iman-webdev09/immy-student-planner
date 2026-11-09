@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" class="auth-pending">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -19,17 +19,27 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    html.auth-pending body { visibility: hidden; }
+    .hdr-right { display: flex; align-items: center; gap: 10px; }
+    .hdr-btn { background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border); border-radius: 12px; padding: 8px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-decoration: none; box-shadow: var(--shadow); }
+    .hdr-btn.hidden { display: none; }
+  </style>
 </head>
 <body>
 
   <!-- ===== HEADER ===== -->
   <header>
     <div class="logo">Immy<span>- Student Planner</span></div>
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+    <div class="hdr-right">
+      <a class="hdr-btn hidden" id="adminLink" href="admin.html">Admin</a>
+      <button class="hdr-btn" id="logoutBtn" type="button">Logout</button>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
       <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
       </svg>
     </button>
+    </div>
   </header>
 
   <!-- ===== MAIN DASHBOARD ===== -->
@@ -211,9 +221,37 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
   <script>
+    // Login check -> cloud data load -> phir app.js chalao
+    (async () => {
+      try {
+        const me = await Immy.requireLogin();
+        if (!me) return;
+
+        try { await Immy.pull(); } catch (e) { console.warn('Cloud load failed, using local data', e); }
+        Immy.startAutoSync();
+
+        document.getElementById('logoutBtn').onclick = () => Immy.logout();
+        if (me.profile.role === 'admin') document.getElementById('adminLink').classList.remove('hidden');
+
+        const s = document.createElement('script');
+        s.src = 'app.js';
+        s.onload = () => {
+          const first = (me.profile.full_name || '').trim().split(' ')[0];
+          const h1 = document.querySelector('#dashboard-page .greeting h1');
+          if (h1 && first) h1.textContent = 'Hey, ' + first + '! 👋';
+        };
+        document.body.appendChild(s);
+        document.documentElement.classList.remove('auth-pending');
+      } catch (e) {
+        console.error(e);
+        location.replace('login.html');
+      }
+    })();
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(err => console.log('Service Worker Error', err));

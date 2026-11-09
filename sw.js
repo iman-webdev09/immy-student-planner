@@ -1,8 +1,12 @@
-const CACHE_NAME = 'immy-v8';
+const CACHE_NAME = 'immy-v9';
 const ASSETS = [
   '/',
   '/index.html',
   '/app.html',
+  '/login.html',
+  '/admin.html',
+  '/config.js',
+  '/auth.js',
   '/style.css',
   '/app.js',
   '/manifest.json',

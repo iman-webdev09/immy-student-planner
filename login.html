@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Log in – Immy Student Planner</title>
+  <meta name="robots" content="noindex, follow">
+  <meta name="theme-color" content="#6366f1">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    :root{--bg:#f4f6fb;--text:#1e293b;--muted:#64748b;--card:#fff;--border:#e2e8f0;--primary:#4f46e5;--err:#dc2626;--ok:#059669}
+    @media (prefers-color-scheme: dark){:root{--bg:#0f172a;--text:#f8fafc;--muted:#94a3b8;--card:#1e293b;--border:#334155;--primary:#6366f1;--err:#f87171;--ok:#34d399}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px));padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+    .box{width:100%;max-width:400px;background:var(--card);border:1px solid var(--border);border-radius:24px;padding:28px}
+    .logo{text-align:center;margin-bottom:18px}
+    .logo img{border-radius:18px}
+    h1{font-size:1.5rem;text-align:center;margin-top:8px}
+    .sub{color:var(--muted);text-align:center;font-size:.9rem;margin:4px 0 18px}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);padding:5px;border-radius:12px;margin-bottom:18px}
+    .tabs button{border:none;background:transparent;color:var(--muted);padding:10px;border-radius:9px;font-weight:700;cursor:pointer;font-size:.95rem}
+    .tabs button.on{background:var(--primary);color:#fff}
+    label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin:12px 0 5px}
+    input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1rem;outline:none}
+    input:focus{border-color:var(--primary)}
+    .go{width:100%;margin-top:18px;background:var(--primary);color:#fff;border:none;padding:13px;border-radius:12px;font-weight:700;font-size:1rem;cursor:pointer}
+    .go:disabled{opacity:.6;cursor:wait}
+    #msg{margin-top:14px;font-size:.88rem;text-align:center;min-height:1.2em}
+    #msg.err{color:var(--err)} #msg.ok{color:var(--ok)}
+    .back{display:block;text-align:center;margin-top:18px;color:var(--muted);font-size:.85rem;text-decoration:none}
+    .hide{display:none}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo"><img src="icon-192.png" alt="Immy" width="72" height="72"></div>
+    <h1>Welcome to Immy</h1>
+    <p class="sub">Log in to save your tasks and use them on any device.</p>
+
+    <div class="tabs">
+      <button id="tabLogin" class="on" type="button">Log in</button>
+      <button id="tabSignup" type="button">Sign up</button>
+    </div>
+
+    <div id="nameWrap" class="hide">
+      <label for="fullName">Your name</label>
+      <input id="fullName" type="text" autocomplete="name" placeholder="e.g. Iman">
+    </div>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="email" placeholder="you@example.com">
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" placeholder="At least 8 characters">
+
+    <button class="go" id="submitBtn" type="button">Log in</button>
+    <p id="msg"></p>
+    <a class="back" href="index.html">← Back to home</a>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let mode = 'login';
+    const msg = (t, cls) => { $('msg').textContent = t; $('msg').className = cls || ''; };
+
+    function setMode(m) {
+      mode = m;
+      $('tabLogin').classList.toggle('on', m === 'login');
+      $('tabSignup').classList.toggle('on', m === 'signup');
+      $('nameWrap').classList.toggle('hide', m === 'login');
+      $('submitBtn').textContent = m === 'login' ? 'Log in' : 'Create account';
+      $('password').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+      msg('');
+    }
+    $('tabLogin').onclick = () => setMode('login');
+    $('tabSignup').onclick = () => setMode('signup');
+
+    if (location.search.includes('blocked')) msg('This account has been blocked. Please contact the owner.', 'err');
+    if (!Immy.configured) msg('Setup baqi hai: config.js mein Supabase URL aur key paste karo.', 'err');
+
+    // Pehle se logged in ho to seedha app mein
+    (async () => {
+      if (!Immy.configured) return;
+      const { data: { session } } = await Immy.sb.auth.getSession();
+      if (session && !location.search.includes('blocked')) location.replace('app.html');
+    })();
+
+    async function submit() {
+      if (!Immy.configured) return;
+      const email = $('email').value.trim();
+      const password = $('password').value;
+      const name = $('fullName').value.trim();
+      if (!email || !password) return msg('Email aur password likho.', 'err');
+      if (mode === 'signup' && !name) return msg('Apna naam likho.', 'err');
+      if (mode === 'signup' && password.length < 8) return msg('Password kam az kam 8 characters ka ho.', 'err');
+
+      $('submitBtn').disabled = true;
+      msg('Please wait...');
+      try {
+        if (mode === 'signup') {
+          const { data, error } = await Immy.sb.auth.signUp({
+            email, password, options: { data: { full_name: name } }
+          });
+          if (error) throw error;
+          if (data.session) return location.replace('app.html');
+          msg('Account ban gaya! Apni email check karo aur link par click karke confirm karo.', 'ok');
+        } else {
+          const { error } = await Immy.sb.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          location.replace('app.html');
+        }
+      } catch (e) {
+        msg(e.message || 'Kuch masla hua, dobara try karo.', 'err');
+      } finally {
+        $('submitBtn').disabled = false;
+      }
+    }
+    $('submitBtn').onclick = submit;
+    ['email', 'password', 'fullName'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); }));
+  </script>
+</body>
+</html>
