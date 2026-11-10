@@ -3,6 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- Installed app ya logged-in user: seedha app mein (login khud aa jayega). Google ko landing page dikhta hai -->
+  <script>
+    (function () {
+      try {
+        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone;
+        var loggedIn = Object.keys(localStorage).some(function (k) { return /^sb-.*-auth-token$/.test(k); });
+        if (standalone || loggedIn) location.replace('app.html');
+      } catch (e) {}
+    })();
+  </script>
   <title>Immy – Free Student Planner with AI Study Assistant</title>
   <meta name="description" content="Immy is a free student planner app. Track assignments and deadlines, see your risk level, use a focus timer, keep notes and chat with an AI study assistant.">
   <meta name="keywords" content="student planner, study planner app, assignment tracker, deadline tracker, pomodoro timer, AI study assistant, homework planner">
@@ -95,7 +105,7 @@
   <div class="wrap">
     <header class="top">
       <a class="brand" href="/"><img src="icon-192.png" alt="Immy logo" width="36" height="36">Immy</a>
-      <a class="btn" href="app.html">Open App</a>
+      <a class="btn" href="login.html">Log in</a>
     </header>
 
     <main>
@@ -104,7 +114,7 @@
         <h1>Know what's due.<br><span>Know what's next.</span></h1>
         <p class="sub">Immy is a free student planner that tracks your deadlines, warns you about risky tasks and gives you an AI study assistant, all in one app.</p>
         <div class="cta">
-          <a class="btn" href="app.html">Start Planning – Free</a>
+          <a class="btn" href="login.html">Sign up – Free</a>
           <a class="btn ghost" href="#features">See Features</a>
         </div>
       </div>
@@ -146,7 +156,7 @@
       <section style="text-align:center">
         <h2>Ready to stop missing deadlines?</h2>
         <p class="lead">Open Immy and plan your week in minutes.</p>
-        <a class="btn" href="app.html">Open Immy</a>
+        <a class="btn" href="login.html">Get Started</a>
       </section>
     </main>
 
