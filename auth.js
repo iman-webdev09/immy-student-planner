@@ -1,6 +1,6 @@
 // Immy auth + cloud sync (Supabase)
 (function () {
-  const KEYS = ['myTasks', 'mySubjects', 'myNotes', 'myStudyLogs', 'totalStudyTime', 'dailyStudyCapacity', 'theme'];
+  const KEYS = ['myTasks', 'mySubjects', 'myNotes', 'myStudyLogs', 'totalStudyTime', 'studyByDay', 'dailyStudyCapacity', 'theme'];
   const configured = window.SUPABASE_URL && window.SUPABASE_KEY &&
     !window.SUPABASE_URL.startsWith('PASTE') && !window.SUPABASE_KEY.startsWith('PASTE');
 
