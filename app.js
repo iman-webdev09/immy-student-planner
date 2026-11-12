@@ -30,6 +30,18 @@ function saveSubjects() { localStorage.setItem('mySubjects', JSON.stringify(subj
 function saveNotes() { localStorage.setItem('myNotes', JSON.stringify(notes)); }
 function saveStudyLogs() { localStorage.setItem('myStudyLogs', JSON.stringify(studyLogs)); }
 
+// User ka likha text HTML mein daalne se pehle safe banao (< > " ' & se layout/XSS na toote)
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Local date key, e.g. 2026-11-12
+function dayKey(d) {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+
 // ===== 3. SMART RISK CALCULATOR =====
 const DEFAULT_DAILY_CAPACITY = 3;
 
@@ -39,7 +51,7 @@ function getDailyCapacity() {
 }
 
 function calculateRisk(dueDate, estimatedHours) {
-  if (!dueDate) return 'low';
+  if (!dueDate || dueDate === 'No date') return 'low';
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -53,7 +65,7 @@ function calculateRisk(dueDate, estimatedHours) {
   if (daysLeft === 0) return 'high';
 
   const availableHours = daysLeft * getDailyCapacity();
-  const ratio = estimatedHours / availableHours;
+  const ratio = (estimatedHours || 1) / availableHours;
 
   if (ratio > 1)   return 'high';
   if (ratio > 0.6) return 'med';
@@ -65,6 +77,9 @@ function renderTasks() {
   const container = document.getElementById('taskContainer');
   if (!container) return;
 
+  // Risk har baar aaj ki date ke hisaab se nikalo (purani saved value par bharosa nahi)
+  tasks.forEach(t => { t.risk = calculateRisk(t.due, t.hours); });
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const nextWeek = new Date(today);
@@ -73,54 +88,60 @@ function renderTasks() {
   const overdue = [];
   const todayTasks = [];
   const upcoming = [];
+  const later = [];
+  const noDate = [];
 
   tasks.filter(t => !t.completed).forEach(task => {
-    if (!task.due || task.due === 'No date') return;
+    if (!task.due || task.due === 'No date') { noDate.push(task); return; }
     const d = new Date(task.due);
     d.setHours(0, 0, 0, 0);
 
     if (d.getTime() < today.getTime())          overdue.push(task);
     else if (d.getTime() === today.getTime())   todayTasks.push(task);
     else if (d.getTime() <= nextWeek.getTime()) upcoming.push(task);
+    else                                        later.push(task);
   });
 
-  const renderSection = (title, list, emptyMsg) => {
-    if (list.length === 0 && !emptyMsg) return '';
-    const items = list.length === 0
-      ? `<p style="text-align:center;color:var(--text-muted);padding:12px;">${emptyMsg}</p>`
-      : list.map(task => `
-        <div class="task-item ${task.completed ? 'completed' : ''}">
-          <div class="task-check" onclick="toggleTask(${task.id})"></div>
+  const renderSection = (title, list) => {
+    if (list.length === 0) return '';
+    const items = list.map(task => {
+      const risk = ['high', 'med', 'low'].includes(task.risk) ? task.risk : 'low';
+      return `
+        <div class="task-item">
+          <div class="task-check" onclick="toggleTask(${Number(task.id)})"></div>
           <div class="task-info">
-            <h4>${task.name}</h4>
+            <h4>${esc(task.name)}</h4>
             <div class="task-meta">
-              <span class="subject-tag"><span class="subject-dot" style="background:${task.color};"></span> ${task.subject}</span>
-              <span>${task.due}</span>
+              <span class="subject-tag"><span class="subject-dot" style="background:${esc(task.color)};"></span> ${esc(task.subject)}</span>
+              <span>${esc(task.due)}</span>
             </div>
           </div>
-          <div class="badge ${task.risk}">${task.risk.toUpperCase()}</div>
+          <div class="badge ${risk}">${risk.toUpperCase()}</div>
           <div class="task-actions">
-            <button class="icon-btn edit" onclick="editTask(${task.id})">
+            <button class="icon-btn edit" onclick="editTask(${Number(task.id)})">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
             </button>
-            <button class="icon-btn delete" onclick="deleteTask(${task.id})">
+            <button class="icon-btn delete" onclick="deleteTask(${Number(task.id)})">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           </div>
         </div>
-      `).join('');
+      `;
+    }).join('');
     return `<h3 style="font-size:0.8rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:15px 0 5px;">${title}</h3>${items}`;
   };
 
-  const html =
-    renderSection('⚠ Overdue', overdue, overdue.length === 0 ? '' : null) +
-    renderSection('Today', todayTasks, null) +
-    renderSection('Next 7 Days', upcoming, null);
+  const total = overdue.length + todayTasks.length + upcoming.length + later.length + noDate.length;
 
-  if (overdue.length + todayTasks.length + upcoming.length === 0) {
-    container.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:20px;">No tasks due in the next 7 days. Enjoy the calm! 🌿</p>`;
+  if (total === 0) {
+    container.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:20px;">No pending tasks. Enjoy the calm! 🌿</p>`;
   } else {
-    container.innerHTML = html;
+    container.innerHTML =
+      renderSection('⚠ Overdue', overdue) +
+      renderSection('Today', todayTasks) +
+      renderSection('Next 7 Days', upcoming) +
+      renderSection('Later', later) +
+      renderSection('No Date', noDate);
   }
 
   updateRiskAlert();
@@ -157,7 +178,7 @@ function saveEditedTask() {
   const name = document.getElementById('taskName').value;
   const subject = document.getElementById('taskSubject').value;
   const due = document.getElementById('taskDue').value;
-  const hours = parseInt(document.getElementById('taskHours').value) || 1;
+  const hours = parseFloat(document.getElementById('taskHours').value) || 1;
   if (!name || !subject) return alert("Please enter name and subject");
 
   const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
@@ -236,7 +257,7 @@ function addNewTask() {
   const name = document.getElementById('taskName').value;
   const subject = document.getElementById('taskSubject').value;
   const due = document.getElementById('taskDue').value;
-  const hours = parseInt(document.getElementById('taskHours').value) || 1;
+  const hours = parseFloat(document.getElementById('taskHours').value) || 1;
   if (!name || !subject) return alert("Please enter name and subject");
 
   const risk = calculateRisk(due, hours);
@@ -267,8 +288,8 @@ function renderSubjects() {
     ).length;
     return `
       <div class="subject-card">
-        <div class="subject-color-bar" style="background: ${sub.color};"></div>
-        <h3>${sub.name}</h3>
+        <div class="subject-color-bar" style="background: ${esc(sub.color)};"></div>
+        <h3>${esc(sub.name)}</h3>
         <p>${pending} pending · ${done} done</p>
       </div>
     `;
@@ -289,7 +310,7 @@ function renderNotes() {
   if (!container) return;
   container.innerHTML = notes.map((note, index) => `
     <div class="note-item">
-      <p>${note.text}</p>
+      <p>${esc(note.text)}</p>
       <button class="delete-note-btn" onclick="deleteNote(${index})">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
       </button>
@@ -317,8 +338,8 @@ function renderStudyLog() {
   container.innerHTML = studyLogs.map((log, index) => `
     <div class="log-item">
       <div>
-        <h4>${log.subject}</h4>
-        <p>${log.content}</p>
+        <h4>${esc(log.subject)}</h4>
+        <p>${esc(log.content)}</p>
       </div>
       <button class="delete-note-btn" onclick="deleteStudyLog(${index})">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -406,8 +427,7 @@ function toggleTimer() {
   if (!isBreakTime) {
     timeCounterInterval = setInterval(() => {
       if (isTimerRunning && !isBreakTime) {
-        let currentTotal = parseInt(localStorage.getItem('totalStudyTime')) || 0;
-        localStorage.setItem('totalStudyTime', currentTotal + 1);
+        addStudySeconds(1);
         updateStudyTimeStat();
       } else {
         clearInterval(timeCounterInterval);
@@ -458,30 +478,44 @@ function updateSubjectsStat() {
   if (totalSubjectsEl) totalSubjectsEl.textContent = subjects.length;
 }
 
+// Roz ka study time alag save hota hai: { '2026-11-12': 5400, ... } (seconds)
+function getStudyByDay() {
+  try { return JSON.parse(localStorage.getItem('studyByDay')) || {}; } catch { return {}; }
+}
+
+function addStudySeconds(n) {
+  const all = getStudyByDay();
+  const k = dayKey(new Date());
+  all[k] = (all[k] || 0) + n;
+  localStorage.setItem('studyByDay', JSON.stringify(all));
+}
+
 function updateStudyTimeStat() {
   const totalStudyTimeEl = document.getElementById('totalStudyTime');
   if (totalStudyTimeEl) {
-    let totalSeconds = parseInt(localStorage.getItem('totalStudyTime')) || 0;
-    let hours = (totalSeconds / 3600).toFixed(1);
-    totalStudyTimeEl.textContent = `${hours}h`;
+    const secs = getStudyByDay()[dayKey(new Date())] || 0;
+    totalStudyTimeEl.textContent = `${(secs / 3600).toFixed(1)}h`;
   }
   updateGraph();
 }
 
+// Weekly graph: is hafte (Mon-Sun) ka asal study time, daily capacity ke muqabil
 function updateGraph() {
   const bars = document.querySelectorAll('.chart-container .bar');
   if (bars.length === 0) return;
 
-  const today = new Date().getDay();
-  let totalSeconds = parseInt(localStorage.getItem('totalStudyTime')) || 0;
-  let heightPercentage = Math.min((totalSeconds / 3600) * 20, 100);
+  const all = getStudyByDay();
+  const now = new Date();
+  const todayIdx = (now.getDay() + 6) % 7; // Monday = 0
+  const goalSeconds = getDailyCapacity() * 3600;
 
-  bars.forEach((bar, index) => {
-    let targetDayIndex = (today === 0) ? 6 : today - 1;
-    if (index === targetDayIndex) {
-      bar.style.height = `${Math.max(heightPercentage, 10)}%`;
-      bar.classList.add('active');
-    }
+  bars.forEach((bar, i) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - todayIdx + i);
+    const secs = all[dayKey(d)] || 0;
+    const pct = Math.min((secs / goalSeconds) * 100, 100);
+    bar.style.height = `${Math.max(pct, 4)}%`;
+    bar.classList.toggle('active', i === todayIdx);
   });
 }
 
@@ -527,7 +561,8 @@ if (chatToggle) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
-          userTasks: tasksString
+          userTasks: tasksString,
+          userName: ((window.Immy && Immy.profile && Immy.profile.full_name) || '').trim().split(' ')[0]
         })
       });
 
@@ -540,7 +575,7 @@ if (chatToggle) {
 
     } catch (error) {
       console.error("AI Error:", error);
-      return "Sorry Iman, AI se connect nahi ho pa raha. Internet check karein!";
+      return "Sorry, AI se connect nahi ho pa raha. Internet check karein!";
     }
   }
 
